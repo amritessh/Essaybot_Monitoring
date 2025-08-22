@@ -72,33 +72,36 @@ class TeamsNotifier {
 
     // Create a simple Adaptive Card that Power Automate can handle
     const simpleAdaptiveCard = {
-      type: "AdaptiveCard",
-      version: "1.0",
+      type: 'AdaptiveCard',
+      version: '1.0',
       body: [
         {
-          type: "TextBlock",
-          text: title || "EssayBot Alert",
-          weight: "Bolder",
-          size: "Large",
-          color: severity === 'error' ? "Attention" : severity === 'warning' ? "Warning" : "Default"
+          type: 'TextBlock',
+          text: title || 'EssayBot Alert',
+          weight: 'Bolder',
+          size: 'Large',
+          color:
+            severity === 'error'
+              ? 'Attention'
+              : severity === 'warning' ? 'Warning' : 'Default'
         },
         {
-          type: "TextBlock",
-          text: message || "No message provided",
+          type: 'TextBlock',
+          text: message || 'No message provided',
           wrap: true,
-          spacing: "Medium"
+          spacing: 'Medium'
         },
         {
-          type: "TextBlock",
+          type: 'TextBlock',
           text: `Severity: ${severity.toUpperCase()}`,
-          size: "Small",
-          color: "Default"
+          size: 'Small',
+          color: 'Default'
         },
         {
-          type: "TextBlock",
+          type: 'TextBlock',
           text: `Time: ${new Date().toLocaleString()}`,
-          size: "Small",
-          color: "Default"
+          size: 'Small',
+          color: 'Default'
         }
       ]
     };
@@ -297,33 +300,43 @@ class TeamsNotifier {
    * Format alert data for Teams Adaptive Card
    */
   formatTeamsMessage(alertData) {
-    const { title, message, severity = 'info', services = {}, rag = {}, action = 'Check service status' } = alertData;
+    const {
+      title,
+      message,
+      severity = 'info',
+      services = {},
+      rag = {},
+      action = 'Check service status'
+    } = alertData;
 
     // Create proper Adaptive Card format for Power Automate
     const adaptiveCard = {
-      type: "AdaptiveCard",
-      version: "1.0",
+      type: 'AdaptiveCard',
+      version: '1.0',
       body: [
         {
-          type: "TextBlock",
-          text: title || "EssayBot Alert",
-          weight: "Bolder",
-          size: "Large",
-          color: severity === 'error' ? "Attention" : severity === 'warning' ? "Warning" : "Default"
+          type: 'TextBlock',
+          text: title || 'EssayBot Alert',
+          weight: 'Bolder',
+          size: 'Large',
+          color:
+            severity === 'error'
+              ? 'Attention'
+              : severity === 'warning' ? 'Warning' : 'Default'
         },
         {
-          type: "TextBlock",
-          text: message || "No message provided",
+          type: 'TextBlock',
+          text: message || 'No message provided',
           wrap: true,
-          spacing: "Medium"
+          spacing: 'Medium'
         }
       ],
       actions: [
         {
-          type: "Action.Submit",
+          type: 'Action.Submit',
           title: action,
           data: {
-            action: "acknowledge",
+            action: 'acknowledge',
             timestamp: new Date().toISOString()
           }
         }
@@ -335,18 +348,20 @@ class TeamsNotifier {
       const serviceFacts = [];
       for (const [serviceName, status] of Object.entries(services)) {
         const statusIcon = status.healthy ? '✅' : '❌';
-        const responseTime = status.responseTime ? ` (${status.responseTime}ms)` : '';
+        const responseTime = status.responseTime
+          ? ` (${status.responseTime}ms)`
+          : '';
         const error = status.error ? ` - ${status.error}` : '';
         serviceFacts.push({
           name: `${statusIcon} ${serviceName}`,
           value: status.healthy ? `Healthy${responseTime}` : `Down${error}`
         });
       }
-      
+
       adaptiveCard.body.push({
-        type: "FactSet",
+        type: 'FactSet',
         facts: serviceFacts,
-        spacing: "Medium"
+        spacing: 'Medium'
       });
     }
 
@@ -357,30 +372,30 @@ class TeamsNotifier {
       const responseTime = rag.responseTime ? ` (${rag.responseTime}ms)` : '';
       const llamaIndex = rag.llamaIndexAvailable ? 'Available' : 'Unavailable';
       const error = rag.error ? ` - ${rag.error}` : '';
-      
+
       ragFacts.push({
         name: `${statusIcon} RAG Pipeline`,
         value: rag.healthy ? `Healthy${responseTime}` : `Down${error}`
       });
       ragFacts.push({
-        name: "LlamaIndex Status",
+        name: 'LlamaIndex Status',
         value: llamaIndex
       });
-      
+
       adaptiveCard.body.push({
-        type: "FactSet",
+        type: 'FactSet',
         facts: ragFacts,
-        spacing: "Medium"
+        spacing: 'Medium'
       });
     }
 
     // Add timestamp
     adaptiveCard.body.push({
-      type: "TextBlock",
+      type: 'TextBlock',
       text: `Alert Time: ${new Date().toLocaleString()}`,
-      size: "Small",
-      color: "Default",
-      spacing: "Medium"
+      size: 'Small',
+      color: 'Default',
+      spacing: 'Medium'
     });
 
     return adaptiveCard;
