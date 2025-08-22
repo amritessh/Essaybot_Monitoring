@@ -284,6 +284,10 @@ class HealthChecker {
    * Handle alerts based on health check results
    */
   async handleAlerts(results) {
+    // Send comprehensive health check summary to Teams
+    await this.teamsNotifier.sendHealthCheckSummary(results);
+
+    // Additional specific alerts for critical issues
     if (results.hasFailures) {
       // Critical failures - send immediate alert
       const failedServices = Object.entries(results.services)
@@ -299,7 +303,8 @@ class HealthChecker {
             failedServices.map(name => [name, results.services[name]])
           ),
           action:
-            'Immediate attention required - check server status and restart services'
+            'Immediate attention required - check server status and restart services',
+          healthCheckResults: results
         });
       }
     }
@@ -318,7 +323,8 @@ class HealthChecker {
           services: Object.fromEntries(
             slowServices.map(name => [name, results.services[name]])
           ),
-          action: 'Monitor performance and investigate if issues persist'
+          action: 'Monitor performance and investigate if issues persist',
+          healthCheckResults: results
         });
       }
     }

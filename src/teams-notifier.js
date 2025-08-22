@@ -15,6 +15,7 @@ class TeamsNotifier {
    * @param {Object} alertData.services - Service status information
    * @param {Object} alertData.rag - RAG pipeline status
    * @param {string} alertData.action - Recommended action
+   * @param {Object} alertData.healthCheckResults - Full health check results
    */
   async sendAlert(alertData) {
     const {
@@ -23,20 +24,23 @@ class TeamsNotifier {
       severity = 'info',
       services = {},
       rag = {},
-      action = 'Check service status'
+      action = 'Check service status',
+      healthCheckResults = null
     } = alertData;
 
-    const teamsMessage = this.formatTeamsMessage({
+    const adaptiveCard = this.formatTeamsMessage({
       title,
       message,
       severity,
       services,
       rag,
-      action
+      action,
+      healthCheckResults
     });
 
     try {
-      const response = await axios.post(this.webhookUrl, teamsMessage, {
+      // Send the Adaptive Card directly - Power Automate expects this format
+      const response = await axios.post(this.webhookUrl, adaptiveCard, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -61,113 +65,106 @@ class TeamsNotifier {
   }
 
   /**
-   * Format message for Teams
+   * Send alert in a format that won't trigger Power Automate loops
    */
-  formatTeamsMessage(alertData) {
+  async sendSimpleAlert(alertData) {
     const { title, message, severity, services, rag, action } = alertData;
 
-    // Severity colors and icons
-    const severityConfig = {
-      info: { color: '0078D4', icon: 'ℹ️' },
-      warning: { color: 'FF8C00', icon: '⚠️' },
-      error: { color: 'D13438', icon: '🚨' },
-      critical: { color: 'FF0000', icon: '🚨' }
-    };
-
-    const config = severityConfig[severity] || severityConfig.info;
-    const icon = config.icon;
-
-    // Build facts array
-    const facts = [
-      {
-        name: 'Severity',
-        value: severity.toUpperCase()
-      },
-      {
-        name: 'Time',
-        value: new Date().toLocaleString()
-      }
-    ];
-
-    // Add service status facts
-    if (Object.keys(services).length > 0) {
-      facts.push({
-        name: 'Services',
-        value: this.formatServiceStatus(services)
-      });
-    }
-
-    // Add RAG pipeline facts
-    if (Object.keys(rag).length > 0) {
-      facts.push({
-        name: 'RAG Pipeline',
-        value: this.formatRAGStatus(rag)
-      });
-    }
-
-    // Add action
-    if (action) {
-      facts.push({
-        name: 'Action Required',
-        value: action
-      });
-    }
-
-    return {
-      '@type': 'MessageCard',
-      '@context': 'http://schema.org/extensions',
-      themeColor: config.color,
-      summary: `${icon} ${title}`,
-      sections: [
+    // Create a simple Adaptive Card that Power Automate can handle
+    const simpleAdaptiveCard = {
+      type: "AdaptiveCard",
+      version: "1.0",
+      body: [
         {
-          activityTitle: `${icon} ${title}`,
-          activitySubtitle: new Date().toLocaleString(),
-          text: message,
-          facts: facts
+          type: "TextBlock",
+          text: title || "EssayBot Alert",
+          weight: "Bolder",
+          size: "Large",
+          color: severity === 'error' ? "Attention" : severity === 'warning' ? "Warning" : "Default"
+        },
+        {
+          type: "TextBlock",
+          text: message || "No message provided",
+          wrap: true,
+          spacing: "Medium"
+        },
+        {
+          type: "TextBlock",
+          text: `Severity: ${severity.toUpperCase()}`,
+          size: "Small",
+          color: "Default"
+        },
+        {
+          type: "TextBlock",
+          text: `Time: ${new Date().toLocaleString()}`,
+          size: "Small",
+          color: "Default"
         }
       ]
     };
+
+    try {
+      const response = await axios.post(this.webhookUrl, simpleAdaptiveCard, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      if (response.status === 200 || response.status === 202) {
+        console.log('✅ Simple alert sent successfully');
+        return true;
+      } else {
+        console.error(
+          '❌ Failed to send simple alert:',
+          response.status,
+          response.statusText
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error sending simple alert:', error.message);
+      return false;
+    }
   }
 
   /**
-   * Format service status for Teams
+   * Format service status in simple text format
    */
-  formatServiceStatus(services) {
-    const statuses = [];
+  formatServiceStatusSimple(services) {
+    if (!services || Object.keys(services).length === 0) {
+      return 'No services checked';
+    }
 
+    const statuses = [];
     for (const [serviceName, status] of Object.entries(services)) {
       const statusIcon = status.healthy ? '✅' : '❌';
       const responseTime = status.responseTime
         ? ` (${status.responseTime}ms)`
         : '';
-      statuses.push(`${statusIcon} ${serviceName}${responseTime}`);
+      const error = status.error ? ` - ${status.error}` : '';
+      statuses.push(`${statusIcon} ${serviceName}${responseTime}${error}`);
     }
 
     return statuses.join('\n');
   }
 
   /**
-   * Format RAG pipeline status for Teams
+   * Format RAG status in simple text format
    */
-  formatRAGStatus(rag) {
-    if (rag.healthy === undefined) return 'Status unknown';
+  formatRAGStatusSimple(rag) {
+    if (!rag || Object.keys(rag).length === 0) {
+      return 'RAG pipeline not checked';
+    }
 
     const statusIcon = rag.healthy ? '✅' : '❌';
-    const details = [];
+    const responseTime = rag.responseTime ? ` (${rag.responseTime}ms)` : '';
+    const llamaIndex = rag.llamaIndexAvailable
+      ? '🧠 Available'
+      : '❌ Unavailable';
+    const error = rag.error ? ` - ${rag.error}` : '';
 
-    if (rag.llamaIndexAvailable !== undefined) {
-      details.push(`LlamaIndex: ${rag.llamaIndexAvailable ? '✅' : '❌'}`);
-    }
-
-    if (rag.responseTime) {
-      details.push(`Response: ${rag.responseTime}ms`);
-    }
-
-    if (rag.error) {
-      details.push(`Error: ${rag.error}`);
-    }
-
-    return `${statusIcon} ${details.join(' | ')}`;
+    return `${statusIcon} RAG Pipeline${responseTime}${error}\n   ${llamaIndex}`;
   }
 
   /**
@@ -220,6 +217,173 @@ class TeamsNotifier {
       services: { [serviceName]: { healthy: true } },
       action: 'Monitor service stability'
     });
+  }
+
+  /**
+   * Send comprehensive health check summary
+   */
+  async sendHealthCheckSummary(healthCheckResults) {
+    const { hasFailures, hasWarnings, services, rag } = healthCheckResults;
+
+    let title, message, severity;
+
+    if (hasFailures) {
+      title = '🚨 Health Check - Critical Issues Detected';
+      message = 'Multiple services are experiencing issues';
+      severity = 'critical';
+    } else if (hasWarnings) {
+      title = '⚠️ Health Check - Performance Warnings';
+      message = 'Some services are responding slowly';
+      severity = 'warning';
+    } else {
+      title = '✅ Health Check - All Systems Operational';
+      message = 'All services are healthy and responding normally';
+      severity = 'info';
+    }
+
+    // Create detailed message with all health check results
+    let detailedMessage = message + '\n\n';
+
+    // Add service details
+    detailedMessage += '🔧 Service Status:\n';
+    for (const [serviceName, status] of Object.entries(services)) {
+      const statusIcon = status.healthy ? '✅' : '❌';
+      const warningIcon = status.warning ? '⚠️' : '';
+      const responseTime = status.responseTime
+        ? ` (${status.responseTime}ms)`
+        : '';
+      const error = status.error ? ` - ${status.error}` : '';
+
+      detailedMessage += `${statusIcon} ${serviceName}${responseTime}${error} ${warningIcon}\n`;
+    }
+
+    // Add RAG pipeline details
+    if (rag && Object.keys(rag).length > 0) {
+      detailedMessage += '\n🧠 RAG Pipeline Status:\n';
+      const statusIcon = rag.healthy ? '✅' : '❌';
+      const warningIcon = rag.warning ? '⚠️' : '';
+      const llamaIndexIcon = rag.llamaIndexAvailable ? '🧠' : '❌';
+      const responseTime = rag.responseTime ? ` (${rag.responseTime}ms)` : '';
+      const error = rag.error ? ` - ${rag.error}` : '';
+
+      detailedMessage += `${statusIcon} RAG Pipeline${responseTime}${error} ${warningIcon}\n`;
+      detailedMessage += `   ${llamaIndexIcon} LlamaIndex: ${rag.llamaIndexAvailable
+        ? 'Available'
+        : 'Unavailable'}\n`;
+
+      if (rag.details && Object.keys(rag.details).length > 0) {
+        for (const [key, value] of Object.entries(rag.details)) {
+          detailedMessage += `   📋 ${key}: ${value}\n`;
+        }
+      }
+    }
+
+    // Add timestamp
+    detailedMessage += `\n⏰ Check Time: ${new Date().toLocaleString()}`;
+
+    return this.sendAlert({
+      title,
+      message: detailedMessage,
+      severity,
+      services,
+      rag,
+      action: hasFailures
+        ? 'Immediate attention required'
+        : 'Continue monitoring'
+    });
+  }
+
+  /**
+   * Format alert data for Teams Adaptive Card
+   */
+  formatTeamsMessage(alertData) {
+    const { title, message, severity = 'info', services = {}, rag = {}, action = 'Check service status' } = alertData;
+
+    // Create proper Adaptive Card format for Power Automate
+    const adaptiveCard = {
+      type: "AdaptiveCard",
+      version: "1.0",
+      body: [
+        {
+          type: "TextBlock",
+          text: title || "EssayBot Alert",
+          weight: "Bolder",
+          size: "Large",
+          color: severity === 'error' ? "Attention" : severity === 'warning' ? "Warning" : "Default"
+        },
+        {
+          type: "TextBlock",
+          text: message || "No message provided",
+          wrap: true,
+          spacing: "Medium"
+        }
+      ],
+      actions: [
+        {
+          type: "Action.Submit",
+          title: action,
+          data: {
+            action: "acknowledge",
+            timestamp: new Date().toISOString()
+          }
+        }
+      ]
+    };
+
+    // Add service status if available
+    if (Object.keys(services).length > 0) {
+      const serviceFacts = [];
+      for (const [serviceName, status] of Object.entries(services)) {
+        const statusIcon = status.healthy ? '✅' : '❌';
+        const responseTime = status.responseTime ? ` (${status.responseTime}ms)` : '';
+        const error = status.error ? ` - ${status.error}` : '';
+        serviceFacts.push({
+          name: `${statusIcon} ${serviceName}`,
+          value: status.healthy ? `Healthy${responseTime}` : `Down${error}`
+        });
+      }
+      
+      adaptiveCard.body.push({
+        type: "FactSet",
+        facts: serviceFacts,
+        spacing: "Medium"
+      });
+    }
+
+    // Add RAG pipeline status if available
+    if (Object.keys(rag).length > 0) {
+      const ragFacts = [];
+      const statusIcon = rag.healthy ? '✅' : '❌';
+      const responseTime = rag.responseTime ? ` (${rag.responseTime}ms)` : '';
+      const llamaIndex = rag.llamaIndexAvailable ? 'Available' : 'Unavailable';
+      const error = rag.error ? ` - ${rag.error}` : '';
+      
+      ragFacts.push({
+        name: `${statusIcon} RAG Pipeline`,
+        value: rag.healthy ? `Healthy${responseTime}` : `Down${error}`
+      });
+      ragFacts.push({
+        name: "LlamaIndex Status",
+        value: llamaIndex
+      });
+      
+      adaptiveCard.body.push({
+        type: "FactSet",
+        facts: ragFacts,
+        spacing: "Medium"
+      });
+    }
+
+    // Add timestamp
+    adaptiveCard.body.push({
+      type: "TextBlock",
+      text: `Alert Time: ${new Date().toLocaleString()}`,
+      size: "Small",
+      color: "Default",
+      spacing: "Medium"
+    });
+
+    return adaptiveCard;
   }
 }
 
