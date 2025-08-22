@@ -1,7 +1,6 @@
 require('dotenv').config();
 
 const config = {
-  // Teams Integration
   teams: {
     webhookUrl:
       process.env.TEAMS_WEBHOOK_URL ||

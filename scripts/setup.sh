@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# EssayBot Monitoring Setup Script
-# Run this script on your GPU server to set up monitoring
-
 set -e
 
 echo "🚀 Setting up EssayBot Monitoring..."
