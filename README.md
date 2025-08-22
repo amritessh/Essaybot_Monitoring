@@ -1,140 +1,275 @@
-### Overview
-Phased approach: Start with Teams alerts, then build dashboards and advanced monitoring on top of that foundation.
+# EssayBot Monitoring System
 
-## Phase 1: Teams Alert Foundation (Week 1-2)
+A comprehensive monitoring and alerting system for EssayBot services, including RAG pipeline monitoring and Teams integration.
 
-### 1.1 Teams Setup
-- **Create dedicated channel**: `#essaybot-alerts` or `#essaybot-monitoring`
-- **Set up webhook**: Get the incoming webhook URL
-- **Test basic connectivity**: Send a simple test message
+## 🚀 Features
 
-### 1.2 Basic Alert Types to Start With
-- **Service Health**: Up/down status
-- **Error Alerts**: High error rates, critical failures
-- **Performance**: Slow response times
-- **Resource**: High CPU/memory usage
+- **Real-time Health Monitoring**: Monitors EssayBot API, Dash Portal, and RAG Pipeline
+- **Teams Integration**: Sends alerts to Microsoft Teams via Power Automate
+- **RAG Pipeline Monitoring**: Tracks LlamaIndex availability and performance
+- **Performance Tracking**: Monitors response times and sets thresholds
+- **PM2 Integration**: Process management with auto-restart and logging
+- **Status Change Detection**: Alerts only when service status changes
+- **Spam Prevention**: Prevents alert flooding with intelligent throttling
 
-### 1.3 Simple Monitoring Agent
-- **Health checks**: Ping your services every 30 seconds
-- **Log monitoring**: Watch for error patterns
-- **Basic metrics**: Response times, error counts
-- **Teams integration**: Send formatted alerts
+## 📋 Prerequisites
 
-## Phase 2: Dashboard Foundation (Week 3-4)
+- Node.js 18+ 
+- PM2 (will be installed automatically)
+- Access to GPU server
+- Microsoft Teams channel with Power Automate webhook
 
-### 2.1 Monitoring Stack Setup
-- **Prometheus**: Metrics collection and storage
-- **Grafana**: Dashboard visualization
-- **Alert Manager**: Alert routing and management
-- **Node Exporter**: Server metrics collection
+## 🏗️ Architecture
 
-### 2.2 Basic Dashboards
-- **System Overview**: CPU, memory, disk, network
-- **Application Health**: Response times, error rates, uptime
-- **Database**: Connection status, query performance
-- **Services**: RAG pipeline, file uploads, authentication
+```
+EssayBot Services → Health Checker → Teams Notifier → Power Automate → Teams Channel
+     ↓
+Monitoring Script (PM2) → Logs & Metrics
+```
 
-### 2.3 Teams + Dashboard Integration
-- **Alert to Dashboard**: Click Teams alert → opens relevant dashboard
-- **Status Updates**: Dashboard shows current alert status
-- **Quick Actions**: Teams buttons to view metrics, restart services
+## 📁 Project Structure
 
-## Phase 3: Advanced Monitoring (Week 5-6)
+```
+essaybot_monitoring/
+├── src/
+│   ├── monitor.js           # Main monitoring script
+│   ├── health-checker.js    # Health check logic
+│   ├── teams-notifier.js    # Teams integration
+│   ├── config.js            # Configuration management
+│   └── test-monitoring.js   # Test script
+├── scripts/
+│   └── setup.sh             # Server setup script
+├── ecosystem.config.js       # PM2 configuration
+├── package.json             # Dependencies
+├── env.example              # Environment template
+└── README.md                # This file
+```
 
-### 3.1 Performance Monitoring
-- **API endpoints**: Response time tracking
-- **User behavior**: Feature usage, session data
-- **Business metrics**: Essays graded, courses created
-- **External services**: AWS S3, email service, RAG pipeline
+## 🚀 Quick Start
 
-### 3.2 Smart Alerting
-- **Alert correlation**: Group related issues
-- **Escalation**: Auto-notify if not resolved
-- **Suppression**: Prevent alert storms
-- **Trending**: Track performance over time
+### 1. Clone Repository
+```bash
+git clone <your-repo-url>
+cd essaybot_monitoring
+```
 
-## Phase 4: CI & Regression Detection (Week 7-8)
+### 2. Test Locally (Optional)
+```bash
+npm install
+npm run test
+```
 
-### 4.1 Performance Baselines
-- **Benchmark tests**: API performance, RAG pipeline
-- **Regression detection**: Alert on performance drops
-- **Trend analysis**: Performance over time
+### 3. Deploy to GPU Server
+```bash
+# Copy to your GPU server
+scp -r . user@your-gpu-server:/opt/essaybot_monitoring
 
-### 4.2 CI Integration
-- **Pre-deployment**: Performance checks
-- **Post-deployment**: Validation and rollback triggers
-- **Performance gates**: Block deployment if metrics degrade
+# SSH into your GPU server
+ssh user@your-gpu-server
+cd /opt/essaybot_monitoring
+```
 
-## Why This Order Works
+### 4. Run Setup Script
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
 
-### 1. Teams First = Immediate Value
-- You get alerts right away
-- Team awareness of issues
-- Quick response to problems
-- Builds confidence in monitoring
+### 5. Configure Environment
+```bash
+# Edit .env file with your settings
+nano .env
+```
 
-### 2. Dashboard Second = Visual Context
-- Teams alerts link to dashboards
-- Better understanding of issues
-- Historical data and trends
-- Team can self-serve information
+### 6. Start Monitoring
+```bash
+npm run start-pm2
+```
 
-### 3. Advanced Features = Optimization
-- Performance baselines
-- Regression detection
-- CI integration
-- Automated responses
+## ⚙️ Configuration
 
-## Teams Alert Examples
+### Environment Variables (.env)
 
-### Service Down Alert Essaybot_Monitoring
-Alert Monitoring setup for EssayBot
+```bash
+# Teams Webhook (Your Logic App URL)
+TEAMS_WEBHOOK_URL=https://your-logic-app-url
 
+# Monitoring Settings
+CHECK_INTERVAL_MINUTES=30
+LOG_LEVEL=info
 
-🚨 EssayBot API Service Down
-Service: EssayBot API Server
-Status: Unreachable
-Duration: 2 minutes
-Action: Check server status
+# Service URLs
+ESSAYBOT_API_URL=https://essaybot.dashlab.studio
+DASH_PORTAL_URL=https://dashlab.studio
+RAG_PYTHON_URL=http://127.0.0.1:6001
 
-## Performance Alert
-⚠️ EssayBot API Slow Response
+# Alert Thresholds
+RESPONSE_TIME_WARNING_MS=3000
+RESPONSE_TIME_CRITICAL_MS=10000
+ERROR_RATE_WARNING_PERCENT=5
+ERROR_RATE_CRITICAL_PERCENT=15
+
+# RAG Pipeline Settings
+RAG_TIMEOUT_MS=15000
+LLAMAINDEX_HEALTH_CHECK=true
+```
+
+### Service URLs
+
+- **EssayBot API**: Your main API service
+- **Dash Portal**: Your dashboard service  
+- **RAG Pipeline**: Internal Python Flask service (port 6001)
+
+## 📊 Monitoring Features
+
+### Health Checks
+- **Service Availability**: Up/down status
+- **Response Times**: Performance monitoring
+- **Error Rates**: Failure tracking
+- **RAG Pipeline**: LlamaIndex availability
+
+### Alert Types
+- **🚨 Critical**: Service down, immediate attention required
+- **⚠️ Warning**: Performance degradation, monitor closely
+- **ℹ️ Info**: Status changes, recovery notifications
+
+### Teams Alerts
+- Service status changes
+- Performance warnings
+- RAG pipeline issues
+- Recovery notifications
+
+## 🛠️ Management Commands
+
+### PM2 Commands
+```bash
+npm run start-pm2      # Start monitoring
+npm run stop-pm2       # Stop monitoring
+npm run restart-pm2    # Restart monitoring
+npm run logs-pm2       # View logs
+npm run status-pm2     # Check status
+```
+
+### Direct PM2 Commands
+```bash
+pm2 start ecosystem.config.js --env production
+pm2 stop essaybot-monitoring
+pm2 restart essaybot-monitoring
+pm2 logs essaybot-monitoring
+pm2 status
+pm2 save
+pm2 startup
+```
+
+## 📈 Monitoring Dashboard
+
+### Health Summary
+- Overall system status
+- Individual service health
+- Performance metrics
+- Alert history
+
+### Logs
+- Health check results
+- Alert notifications
+- Error tracking
+- Performance data
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Teams Alerts Not Working**
+- Check Power Automate flow configuration
+- Verify webhook URL in .env
+- Test with `npm run test`
+
+**Service Checks Failing**
+- Verify service URLs in .env
+- Check network connectivity
+- Review service health endpoints
+
+**PM2 Issues**
+- Check PM2 status: `pm2 status`
+- View logs: `pm2 logs essaybot-monitoring`
+- Restart service: `pm2 restart essaybot-monitoring`
+
+### Debug Mode
+```bash
+# Enable debug logging
+export LOG_LEVEL=debug
+npm run start-pm2
+```
+
+## 📝 Log Files
+
+- **monitoring.log**: General monitoring logs
+- **monitoring-error.log**: Error logs
+- **monitoring-out.log**: Output logs
+
+## 🔄 Updates & Maintenance
+
+### Update Monitoring
+```bash
+git pull origin main
+npm install
+pm2 restart essaybot-monitoring
+```
+
+### Monitor Health
+```bash
+# Check monitoring service health
+pm2 status essaybot-monitoring
+
+# View recent logs
+pm2 logs essaybot-monitoring --lines 100
+
+# Check service uptime
+pm2 show essaybot-monitoring
+```
+
+## 🚨 Alert Examples
+
+### Service Down
+```
+🚨 Service Down Alert
 Service: EssayBot API
+Status: Unreachable
+Action: Check service status and restart if necessary
+```
+
+### Performance Warning
+```
+⚠️ Performance Warning
+Service: RAG Pipeline
 Response Time: 4.2s (threshold: 3s)
-Endpoint: /api/grade-essay
-Duration: 10 minutes
+Action: Monitor performance and investigate if it persists
+```
 
+### Recovery Notification
+```
+✅ Service Recovered
+Service: RAG Pipeline
+Status: Back online
+Action: Monitor service stability
+```
 
-⚠️ High Memory Usage
-Service: EssayBot Server
-Memory: 85% (threshold: 80%)
-Server: essaybot-01
-Action: Check for memory leaks
+## 📞 Support
 
-## Next Steps
+For issues or questions:
+1. Check logs: `pm2 logs essaybot-monitoring`
+2. Review configuration in `.env`
+3. Test Teams integration: `npm run test`
+4. Check PM2 status: `pm2 status`
 
-1. **Set up Teams channel and webhook** (this week)
-2. **Create basic monitoring agent** (next week)
-3. **Test alert flow** (end of week 2)
-4. **Plan dashboard stack** (week 3)
+## 🎯 Roadmap
 
-## Questions to Get Started
+- [ ] Performance dashboards
+- [ ] Historical trend analysis
+- [ ] Custom alert rules
+- [ ] Integration with other monitoring tools
+- [ ] Automated recovery actions
 
-1. **Teams Channel**: What should we call it? (`#essaybot-alerts`, `#essaybot-monitoring`, etc.)
-2. **Initial Alerts**: Which 3-5 alerts would be most valuable to start with?
-3. **Team Access**: Who should have access to the monitoring channel?
-4. **Response Process**: What's your team's process for handling alerts?
+---
 
-## Expected Timeline
-
-- **Week 1-2**: Teams alerts working
-- **Week 3-4**: Basic dashboards operational
-- **Week 5-6**: Advanced monitoring features
-- **Week 7-8**: CI integration and regression detection
-
-## Benefits of This Approach
-
-- **Immediate value**: Get alerts working in a week
-- **Incremental**: Build on working foundation
-- **Team confidence**: See monitoring value early
-- **Scalable**: Easy to add features as you grow
+**Happy Monitoring! 🚀**
